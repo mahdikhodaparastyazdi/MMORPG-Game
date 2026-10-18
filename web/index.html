@@ -1,0 +1,750 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MMORPG Dungeon Reward & Loot Settlement Console</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --panel: #1e293b;
+      --border: #334155;
+      --text: #f8fafc;
+      --muted: #94a3b8;
+      --accent: #38bdf8;
+      --success: #22c55e;
+      --warn: #eab308;
+      --danger: #ef4444;
+      --epic: #c084fc;
+      --legendary: #fb923c;
+    }
+    * { box-sizing: border-box; font-family: system-ui, -apple-system, sans-serif; }
+    body { margin: 0; padding: 16px; background: var(--bg); color: var(--text); font-size: 14px; }
+    h1, h2, h3 { margin-top: 0; }
+    .header { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; background: var(--panel); border: 1px solid var(--border); border-radius: 8px; margin-bottom: 16px; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(440px, 1fr)); gap: 16px; }
+    .card { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 16px; }
+    .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 10px; }
+    label { font-size: 12px; color: var(--muted); display: block; margin-bottom: 4px; }
+    input, select, button, textarea {
+      background: #0b1120; color: var(--text); border: 1px solid var(--border);
+      padding: 7px 10px; border-radius: 6px; font-size: 13px;
+    }
+    button { cursor: pointer; background: #0284c7; border-color: #0369a1; font-weight: 600; }
+    button:hover { background: #0369a1; }
+    button.secondary { background: #334155; border-color: #475569; }
+    button.success { background: #16a34a; border-color: #15803d; }
+    button.warn { background: #ca8a04; border-color: #a16207; }
+    table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 12.5px; }
+    th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--border); }
+    th { color: var(--muted); font-weight: 600; }
+    .badge { padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: 700; display: inline-block; }
+    .COMMON { background: #475569; color: #fff; }
+    .RARE { background: #0284c7; color: #fff; }
+    .EPIC { background: #7e22ce; color: #fff; }
+    .LEGENDARY { background: #ea580c; color: #fff; }
+    .toast { padding: 10px 14px; border-radius: 6px; margin-bottom: 12px; font-weight: 500; display: none; }
+    .toast.error { display: block; background: rgba(239,68,68,0.2); border: 1px solid var(--danger); color: #fca5a5; }
+    .toast.ok { display: block; background: rgba(34,197,94,0.2); border: 1px solid var(--success); color: #86efac; }
+    pre { background: #0b1120; padding: 10px; border-radius: 6px; overflow-x: auto; font-size: 12px; max-height: 240px; border: 1px solid var(--border); }
+    .muted { color: var(--muted); font-size: 12px; }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <div>
+      <h2 style="margin:0;">MMORPG Dungeon Reward & Loot Settlement Console</h2>
+      <span class="muted">Vertical Slice Test UI & Operator Audit Dashboard</span>
+    </div>
+    <div class="row" style="margin:0;">
+      <div>
+        <label>Active Player Session (Acting As):</label>
+        <select id="activePlayerSelect" onchange="onActivePlayerChange()"></select>
+      </div>
+      <button class="secondary" onclick="refreshAll()">Refresh All State</button>
+    </div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <div class="grid">
+    <!-- 1. PLAYERS, GOLD & INVENTORIES -->
+    <div class="card">
+      <h3>1. Players, Gold Balances & Inventories</h3>
+      <p class="muted">Click any player row to inspect their Item Instances & Provenance, or adjust Gold to test edge cases.</p>
+      <table id="playersTable">
+        <thead>
+          <tr><th>ID</th><th>Name & Class</th><th>Gold</th><th>Quick Gold Edit</th><th>Inspect</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+      <div style="margin-top:12px;">
+        <strong id="inspectedPlayerTitle">Selected Player Inventory:</strong>
+        <table id="inventoryTable">
+          <thead>
+            <tr><th>Instance ID</th><th>Item</th><th>Rarity</th><th>Origin Run</th><th>Initial Owner</th></tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- 2. PARTY CREATION & JOINING -->
+    <div class="card">
+      <h3>2. Party Formation (3–6 Players Required)</h3>
+      <div class="row">
+        <button onclick="createParty()">Create Party (As Active Player)</button>
+        <input type="text" id="joinCodeInput" placeholder="Enter Party Code (e.g. K7M9P2)" style="width:180px;" />
+        <button class="secondary" onclick="joinPartyByCode()">Join Party (As Active Player)</button>
+        <button class="warn" onclick="quickFillParty()" title="Automatically joins player-b, player-c, player-d into selected party">Quick-Fill 3 Members</button>
+      </div>
+
+      <div>
+        <label>Select Active Party:</label>
+        <select id="partySelect" onchange="renderSelectedParty()" style="width:100%; margin-bottom:8px;"></select>
+      </div>
+      <div id="partyDetails" class="muted">No party selected.</div>
+      <table id="partyMembersTable">
+        <thead>
+          <tr><th>Player ID</th><th>Username</th><th>Class</th><th>Role</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <!-- 3. START DUNGEON & SIMULATE GAMEPLAY SERVER COMPLETION -->
+    <div class="card">
+      <h3>3. Dungeon Lifecycle & Gameplay Server Settlement</h3>
+      <div class="row">
+        <div>
+          <label>Dungeon & Difficulty (From Active Configs):</label>
+          <select id="dungeonConfigSelect"></select>
+        </div>
+        <div style=" padding-top:16px;">
+          <button class="success" onclick="startDungeonRun()">Leader: Start Dungeon Run</button>
+        </div>
+      </div>
+
+      <hr style="border-color:var(--border); margin:12px 0;" />
+
+      <div>
+        <label>Select Dungeon Run to Inspect / Settle:</label>
+        <select id="runSelect" onchange="onRunSelectChange()" style="width:100%; margin-bottom:8px;"></select>
+      </div>
+      <div id="runMeta" class="muted"></div>
+
+      <div id="contributionBox" style="margin-top:10px;">
+        <strong>Gameplay Server Contribution Simulator:</strong>
+        <table id="participantsTable">
+          <thead>
+            <tr><th>Participant</th><th>Contribution Input</th><th>Effective Loot Weight</th></tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+        <div class="row" style="margin-top:10px;">
+          <label style="display:inline;"><input type="checkbox" id="runSuccessCheck" checked /> Dungeon Succeeded</label>
+          <input type="number" id="optionalSeedInput" placeholder="Optional RNG Seed" style="width:150px;" />
+          <button class="success" onclick="submitCompletion(true)">Submit Completion (Server Auth)</button>
+          <button class="secondary" onclick="submitCompletion(true)" title="Re-submits the exact same Run ID to prove idempotency (no duplicate rewards)">Retry Completion (Idempotency Test)</button>
+        </div>
+      </div>
+
+      <div style="margin-top:12px;">
+        <strong>Generated Run Rewards & Final Ownership:</strong>
+        <table id="runRewardsTable">
+          <thead>
+            <tr><th>Slot</th><th>Instance ID</th><th>Item</th><th>Rarity</th><th>Initial Owner</th><th>Current Owner</th></tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- 4. POST-DUNGEON EXCHANGE WINDOW -->
+    <div class="card">
+      <h3>4. Post-Dungeon Exchange Window (Scoped to Run)</h3>
+      <p class="muted">Participants of the selected Run can post max 1 Purchase Request and accept eligible drops.</p>
+      <div class="row">
+        <div>
+          <label>Buyer (Active Player):</label>
+          <input type="text" id="exchangeBuyerInput" readonly style="width:110px;" />
+        </div>
+        <div>
+          <label>Target Item ID:</label>
+          <select id="exchangeTargetItemSelect"></select>
+        </div>
+        <div>
+          <label>Offered Gold:</label>
+          <input type="number" id="exchangeGoldInput" value="750" style="width:90px;" />
+        </div>
+        <div style="padding-top:16px;">
+          <button onclick="createExchangeRequest()">Create Purchase Request</button>
+        </div>
+      </div>
+
+      <strong>Purchase Requests for Selected Run:</strong>
+      <table id="exchangeRequestsTable">
+        <thead>
+          <tr><th>Req ID</th><th>Buyer</th><th>Wanted Item</th><th>Gold</th><th>Status</th><th>Accept (Using Eligible Item Instance)</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <!-- 5. DYNAMIC LOOT CONFIGURATION EDITOR -->
+    <div class="card">
+      <h3>5. Dynamic Loot Configuration (Zero-Code Updates)</h3>
+      <p class="muted">Saves a new immutable config version. In-progress or settled runs keep their pinned version.</p>
+      <div class="row">
+        <div><label>Dungeon ID</label><input id="cfgDungeonId" value="dungeon-x" style="width:110px;" /></div>
+        <div><label>Difficulty</label><input type="number" id="cfgDifficulty" value="18" style="width:70px;" /></div>
+        <div>
+          <label>Allocation Mode</label>
+          <select id="cfgAllocMode">
+            <option value="PARTY_POOL">PARTY_POOL</option>
+            <option value="PERSONAL_LOOT">PERSONAL_LOOT</option>
+          </select>
+        </div>
+        <div>
+          <label>Contribution Mode</label>
+          <select id="cfgContribMode">
+            <option value="CONTRIBUTION_AWARE">CONTRIBUTION_AWARE</option>
+            <option value="INDEPENDENT">INDEPENDENT</option>
+          </select>
+        </div>
+        <div><label>Pool Drops</label><input type="number" id="cfgDropCount" value="4" style="width:65px;" /></div>
+      </div>
+
+      <div class="row">
+        <div><label>COMMON Prob</label><input type="number" step="0.05" id="probCommon" value="0.45" style="width:80px;" /></div>
+        <div><label>RARE Prob</label><input type="number" step="0.05" id="probRare" value="0.30" style="width:80px;" /></div>
+        <div><label>EPIC Prob</label><input type="number" step="0.05" id="probEpic" value="0.20" style="width:80px;" /></div>
+        <div><label>LEGENDARY Prob</label><input type="number" step="0.05" id="probLegendary" value="0.05" style="width:90px;" /></div>
+      </div>
+
+      <strong>Eligible Catalog Items & Intra-Rarity Weights:</strong>
+      <table id="cfgItemsTable">
+        <thead>
+          <tr><th>Eligible?</th><th>Item ID & Name</th><th>Catalog Rarity</th><th>Weight</th><th>Intra-Rarity Share</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+      <div class="row" style="margin-top:10px;">
+        <button class="success" onclick="saveLootConfig()">Save New Loot Config Version</button>
+      </div>
+    </div>
+
+    <!-- 6. OPERATOR AUDIT LOG & ECONOMY LEDGER -->
+    <div class="card">
+      <h3>6. Operator Audit Trail & Economy Ledger</h3>
+      <strong>Economy Ledger (Reward Grants & Atomic Exchanges for Selected Run):</strong>
+      <table id="ledgerTable">
+        <thead>
+          <tr><th>Event</th><th>Item</th><th>From -> To</th><th>Gold</th><th>Buyer Bal (Before->After)</th><th>Seller Bal (Before->After)</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+      <div style="margin-top:12px;">
+        <strong>Deterministic RNG Settlement Roll Breakdown (JSONB Audit):</strong>
+        <pre id="auditJsonBox">Select a settled run to view RNG seed, effective weights, and roll breakdown.</pre>
+      </div>
+    </div>
+  </div>
+
+<script>
+  let state = {
+    players: [],
+    catalog: [],
+    configs: [],
+    parties: [],
+    runs: [],
+    activePlayerId: 'player-a',
+    selectedPartyId: '',
+    selectedRunId: ''
+  };
+
+  function showToast(msg, isError = false) {
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.className = 'toast ' + (isError ? 'error' : 'ok');
+    setTimeout(() => { el.style.display = 'none'; }, 6000);
+    el.style.display = 'block';
+  }
+
+  async function api(path, opts = {}) {
+    const res = await fetch(path, {
+      headers: { 'Content-Type': 'application/json', ...(opts.headers || {}) },
+      ...opts
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error(data.error || ('HTTP ' + res.status));
+    }
+    return data;
+  }
+
+  async function refreshAll() {
+    try {
+      const [players, catalog, configs, parties, runs] = await Promise.all([
+        api('/api/players'),
+        api('/api/catalog'),
+        api('/api/loot-configs'),
+        api('/api/parties'),
+        api('/api/runs')
+      ]);
+      state.players = players || [];
+      state.catalog = catalog || [];
+      state.configs = configs || [];
+      state.parties = parties || [];
+      state.runs = runs || [];
+
+      renderActivePlayerSelector();
+      renderPlayersTable();
+      await inspectPlayerInventory(state.activePlayerId);
+      renderDungeonConfigSelector();
+      renderPartySelector();
+      renderRunSelector();
+      renderConfigEditorTable();
+    } catch (err) {
+      showToast(err.message, true);
+    }
+  }
+
+  function renderActivePlayerSelector() {
+    const sel = document.getElementById('activePlayerSelect');
+    sel.innerHTML = state.players.map(p =>
+      `<option value="${p.id}" ${p.id === state.activePlayerId ? 'selected' : ''}>${p.username} [${p.id}] (${p.gold_balance}g)</option>`
+    ).join('');
+    document.getElementById('exchangeBuyerInput').value = state.activePlayerId;
+  }
+
+  function onActivePlayerChange() {
+    state.activePlayerId = document.getElementById('activePlayerSelect').value;
+    document.getElementById('exchangeBuyerInput').value = state.activePlayerId;
+    inspectPlayerInventory(state.activePlayerId);
+  }
+
+  function renderPlayersTable() {
+    const tbody = document.querySelector('#playersTable tbody');
+    tbody.innerHTML = state.players.map(p => `
+      <tr>
+        <td><code>${p.id}</code></td>
+        <td>${p.username} <span class="muted">(${p.character_class})</span></td>
+        <td><strong>${p.gold_balance}</strong>g</td>
+        <td>
+          <input type="number" id="gold_${p.id}" value="${p.gold_balance}" style="width:75px; padding:3px 6px;" />
+          <button class="secondary" style="padding:3px 8px;" onclick="setPlayerGold('${p.id}')">Set</button>
+        </td>
+        <td><button class="secondary" style="padding:3px 8px;" onclick="inspectPlayerInventory('${p.id}')">View Items</button></td>
+      </tr>
+    `).join('');
+  }
+
+  async function setPlayerGold(playerId) {
+    try {
+      const val = parseInt(document.getElementById('gold_' + playerId).value, 10);
+      await api(`/api/players/${playerId}/gold`, {
+        method: 'POST',
+        body: JSON.stringify({ gold_balance: val })
+      });
+      showToast(`Updated ${playerId} gold balance to ${val}g`);
+      await refreshAll();
+    } catch (err) {
+      showToast(err.message, true);
+    }
+  }
+
+  async function inspectPlayerInventory(playerId) {
+    try {
+      const p = await api(`/api/players/${playerId}`);
+      document.getElementById('inspectedPlayerTitle').textContent =
+        `Inventory for ${p.username} (${p.gold_balance} Gold):`;
+      const tbody = document.querySelector('#inventoryTable tbody');
+      if (!p.inventory || p.inventory.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" class="muted">No items owned yet.</td></tr>`;
+        return;
+      }
+      tbody.innerHTML = p.inventory.map(it => `
+        <tr>
+          <td><code>${it.instance_id.slice(0, 8)}...</code></td>
+          <td>${it.name} (<code>${it.item_id}</code>)</td>
+          <td><span class="badge ${it.rarity}">${it.rarity}</span></td>
+          <td><code>${it.origin_run_id.slice(0, 8)}...</code></td>
+          <td><code>${it.initial_owner_id}</code></td>
+        </tr>
+      `).join('');
+    } catch (err) {
+      showToast(err.message, true);
+    }
+  }
+
+  function renderPartySelector() {
+    const sel = document.getElementById('partySelect');
+    if (state.parties.length > 0 && !state.selectedPartyId) {
+      state.selectedPartyId = state.parties[0].id;
+    }
+    sel.innerHTML = state.parties.map(pt =>
+      `<option value="${pt.id}" ${pt.id === state.selectedPartyId ? 'selected' : ''}>Code: ${pt.join_code} | Leader: ${pt.leader_id} | Members: ${pt.members.length}/6 | Status: ${pt.status}</option>`
+    ).join('');
+    renderSelectedParty();
+  }
+
+  function renderSelectedParty() {
+    const sel = document.getElementById('partySelect');
+    state.selectedPartyId = sel.value;
+    const pt = state.parties.find(x => x.id === state.selectedPartyId);
+    const details = document.getElementById('partyDetails');
+    const tbody = document.querySelector('#partyMembersTable tbody');
+    if (!pt) {
+      details.textContent = 'No party created yet.';
+      tbody.innerHTML = '';
+      return;
+    }
+    document.getElementById('joinCodeInput').value = pt.join_code;
+    details.innerHTML = `Party ID: <code>${pt.id}</code> | Join Code: <strong>${pt.join_code}</strong> | Status: <strong>${pt.status}</strong>`;
+    tbody.innerHTML = pt.members.map(m => `
+      <tr>
+        <td><code>${m.player_id}</code></td>
+        <td>${m.username}</td>
+        <td>${m.character_class}</td>
+        <td>${m.player_id === pt.leader_id ? '<span class="badge LEGENDARY">LEADER</span>' : 'Member'}</td>
+      </tr>
+    `).join('');
+  }
+
+  async function createParty() {
+    try {
+      const pt = await api('/api/parties', {
+        method: 'POST',
+        body: JSON.stringify({ leader_id: state.activePlayerId })
+      });
+      state.selectedPartyId = pt.id;
+      showToast(`Party created! Join Code: ${pt.join_code}`);
+      await refreshAll();
+    } catch (err) {
+      showToast(err.message, true);
+    }
+  }
+
+  async function joinPartyByCode() {
+    try {
+      const code = document.getElementById('joinCodeInput').value.trim();
+      const pt = await api('/api/parties/join', {
+        method: 'POST',
+        body: JSON.stringify({ join_code: code, player_id: state.activePlayerId })
+      });
+      state.selectedPartyId = pt.id;
+      showToast(`${state.activePlayerId} joined party ${pt.join_code}`);
+      await refreshAll();
+    } catch (err) {
+      showToast(err.message, true);
+    }
+  }
+
+  async function quickFillParty() {
+    try {
+      const code = document.getElementById('joinCodeInput').value.trim();
+      if (!code) throw new Error('Create or select a party first');
+      for (const pid of ['player-b', 'player-c', 'player-d']) {
+        await api('/api/parties/join', {
+          method: 'POST',
+          body: JSON.stringify({ join_code: code, player_id: pid })
+        });
+      }
+      showToast(`Joined player-b, player-c, and player-d into party ${code}`);
+      await refreshAll();
+    } catch (err) {
+      showToast(err.message, true);
+    }
+  }
+
+  function renderDungeonConfigSelector() {
+    const sel = document.getElementById('dungeonConfigSelect');
+    sel.innerHTML = state.configs.map(c =>
+      `<option value="${c.dungeon_id}|${c.difficulty}">${c.dungeon_id} (Level ${c.difficulty}) - ${c.allocation_mode} / ${c.contribution_mode} [v${c.version}]</option>`
+    ).join('');
+
+    const itemSel = document.getElementById('exchangeTargetItemSelect');
+    itemSel.innerHTML = state.catalog.map(it =>
+      `<option value="${it.id}">${it.name} [${it.rarity}] (${it.id})</option>`
+    ).join('');
+  }
+
+  async function startDungeonRun() {
+    try {
+      if (!state.selectedPartyId) throw new Error('Select a party first');
+      const [dungeonId, diffStr] = document.getElementById('dungeonConfigSelect').value.split('|');
+      const run = await api('/api/runs/start', {
+        method: 'POST',
+        body: JSON.stringify({
+          party_id: state.selectedPartyId,
+          leader_id: state.activePlayerId,
+          dungeon_id: dungeonId,
+          difficulty: parseInt(diffStr, 10)
+        })
+      });
+      state.selectedRunId = run.id;
+      showToast(`Dungeon Run started! Run ID: ${run.id}`);
+      await refreshAll();
+    } catch (err) {
+      showToast(err.message, true);
+    }
+  }
+
+  function renderRunSelector() {
+    const sel = document.getElementById('runSelect');
+    if (state.runs.length > 0 && !state.selectedRunId) {
+      state.selectedRunId = state.runs[0].id;
+    }
+    sel.innerHTML = state.runs.map(r =>
+      `<option value="${r.id}" ${r.id === state.selectedRunId ? 'selected' : ''}>Run ${r.id.slice(0, 8)}... | ${r.dungeon_id} (Lv.${r.difficulty}) | Status: ${r.status}</option>`
+    ).join('');
+    onRunSelectChange();
+  }
+
+  async function onRunSelectChange() {
+    const sel = document.getElementById('runSelect');
+    state.selectedRunId = sel.value;
+    const run = state.runs.find(r => r.id === state.selectedRunId);
+    const meta = document.getElementById('runMeta');
+    const pBody = document.querySelector('#participantsTable tbody');
+    const rBody = document.querySelector('#runRewardsTable tbody');
+    const auditBox = document.getElementById('auditJsonBox');
+
+    if (!run) {
+      meta.textContent = 'No Dungeon Runs started yet.';
+      pBody.innerHTML = '';
+      rBody.innerHTML = '';
+      return;
+    }
+
+    meta.innerHTML = `Run ID: <code>${run.id}</code> | Status: <strong>${run.status}</strong> | Pinned Config: <code>${run.loot_config_id.slice(0, 8)}...</code> | Exchange Expires: ${run.exchange_expires_at ? new Date(run.exchange_expires_at).toLocaleTimeString() : 'N/A'}`;
+
+    const defaultScores = [1200, 850, 400, 150, 100, 50];
+    pBody.innerHTML = run.participants.map((pt, idx) => {
+      const val = run.status === 'ACTIVE' ? (defaultScores[idx] || 100) : pt.contribution;
+      return `
+        <tr>
+          <td>${pt.username} (<code>${pt.player_id}</code>)</td>
+          <td><input type="number" class="contrib-input" data-player="${pt.player_id}" value="${val}" style="width:90px;" /></td>
+          <td>${(pt.effective_weight * 100).toFixed(1)}%</td>
+        </tr>
+      `;
+    }).join('');
+
+    if (!run.rewards || run.rewards.length === 0) {
+      rBody.innerHTML = `<tr><td colspan="6" class="muted">No rewards settled yet.</td></tr>`;
+    } else {
+      rBody.innerHTML = run.rewards.map(rw => `
+        <tr>
+          <td>#${rw.settlement_slot}</td>
+          <td><code>${rw.instance_id.slice(0, 8)}...</code></td>
+          <td>${rw.item_name} (<code>${rw.item_id}</code>)</td>
+          <td><span class="badge ${rw.rarity}">${rw.rarity}</span></td>
+          <td><code>${rw.initial_owner_id}</code></td>
+          <td><strong><code>${rw.current_owner_id}</code></strong></td>
+        </tr>
+      `).join('');
+    }
+
+    auditBox.textContent = run.audit_roll_details
+      ? JSON.stringify(run.audit_roll_details, null, 2)
+      : 'Run not settled yet.';
+
+    await loadExchangeAndLedger(run);
+  }
+
+  async function submitCompletion() {
+    try {
+      const run = state.runs.find(r => r.id === state.selectedRunId);
+      if (!run) throw new Error('Select a run first');
+
+      const contributions = {};
+      document.querySelectorAll('.contrib-input').forEach(inp => {
+        contributions[inp.dataset.player] = parseFloat(inp.value) || 0;
+      });
+
+      const seedStr = document.getElementById('optionalSeedInput').value.trim();
+      const payload = {
+        dungeon_id: run.dungeon_id,
+        difficulty: run.difficulty,
+        success: document.getElementById('runSuccessCheck').checked,
+        contributions
+      };
+      if (seedStr !== '') {
+        payload.optional_seed = parseInt(seedStr, 10);
+      }
+
+      const settled = await api(`/api/runs/${run.id}/simulate-complete`, {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      });
+      showToast(`Settlement completed idempotently! Status: ${settled.status} (${settled.rewards.length} rewards)`);
+      await refreshAll();
+    } catch (err) {
+      showToast(err.message, true);
+    }
+  }
+
+  async function loadExchangeAndLedger(run) {
+    try {
+      const [reqs, ledger] = await Promise.all([
+        api(`/api/runs/${run.id}/exchange-requests`),
+        api(`/api/ledger?run_id=${run.id}`)
+      ]);
+
+      const reqBody = document.querySelector('#exchangeRequestsTable tbody');
+      if (!reqs || reqs.length === 0) {
+        reqBody.innerHTML = `<tr><td colspan="6" class="muted">No purchase requests for this run yet.</td></tr>`;
+      } else {
+        reqBody.innerHTML = reqs.map(req => {
+          // Find eligible instances from this run matching target_item_id
+          const matchingInstances = (run.rewards || []).filter(rw =>
+            rw.item_id === req.target_item_id && rw.current_owner_id !== req.buyer_id
+          );
+          const acceptControls = req.status === 'OPEN'
+            ? matchingInstances.map(inst =>
+                `<button class="success" style="padding:3px 7px; margin:2px;" onclick="acceptExchange('${req.id}', '${inst.current_owner_id}', '${inst.instance_id}')">
+                  Accept as ${inst.current_owner_id} (${inst.instance_id.slice(0,6)})
+                </button>`
+              ).join(' ') || '<span class="muted">No other participant holds this item</span>'
+            : `<span class="muted">Fulfilled by ${req.fulfilled_by_seller_id || 'N/A'}</span>`;
+
+          return `
+            <tr>
+              <td><code>${req.id.slice(0, 8)}...</code></td>
+              <td><code>${req.buyer_id}</code></td>
+              <td>${req.target_item_name} <span class="badge ${req.target_item_rarity}">${req.target_item_rarity}</span></td>
+              <td><strong>${req.offered_gold}g</strong></td>
+              <td><strong>${req.status}</strong></td>
+              <td>${acceptControls}</td>
+            </tr>
+          `;
+        }).join('');
+      }
+
+      const ledBody = document.querySelector('#ledgerTable tbody');
+      if (!ledger || ledger.length === 0) {
+        ledBody.innerHTML = `<tr><td colspan="6" class="muted">No ledger entries yet.</td></tr>`;
+      } else {
+        ledBody.innerHTML = ledger.map(e => `
+          <tr>
+            <td><code>${e.event_type}</code></td>
+            <td>${e.item_name || e.item_id || '-'}</td>
+            <td><code>${e.from_player_id || 'DUNGEON'} -> ${e.to_player_id}</code></td>
+            <td>${e.gold_transferred}g</td>
+            <td>${e.buyer_gold_before != null ? `${e.buyer_gold_before}g ->${e.buyer_gold_after}g` : '-'}</td>
+            <td>${e.seller_gold_before != null ? `${e.seller_gold_before}g ->${e.seller_gold_after}g` : '-'}</td>
+          </tr>
+        `).join('');
+      }
+    } catch (err) {
+      showToast(err.message, true);
+    }
+  }
+
+  async function createExchangeRequest() {
+    try {
+      if (!state.selectedRunId) throw new Error('Select a settled run first');
+      const targetItemId = document.getElementById('exchangeTargetItemSelect').value;
+      const gold = parseInt(document.getElementById('exchangeGoldInput').value, 10);
+      await api(`/api/runs/${state.selectedRunId}/exchange-requests`, {
+        method: 'POST',
+        body: JSON.stringify({
+          buyer_id: state.activePlayerId,
+          target_item_id: targetItemId,
+          offered_gold: gold
+        })
+      });
+      showToast(`Purchase request created by ${state.activePlayerId} for ${targetItemId} (${gold}g)`);
+      await refreshAll();
+    } catch (err) {
+      showToast(err.message, true);
+    }
+  }
+
+  async function acceptExchange(requestId, sellerId, itemInstanceId) {
+    try {
+      await api(`/api/exchange-requests/${requestId}/accept`, {
+        method: 'POST',
+        body: JSON.stringify({
+          seller_id: sellerId,
+          item_instance_id: itemInstanceId
+        })
+      });
+      showToast(`Exchange completed! ${sellerId} transferred item ${itemInstanceId.slice(0,8)} and received Gold.`);
+      await refreshAll();
+    } catch (err) {
+      showToast(err.message, true);
+    }
+  }
+
+  function renderConfigEditorTable() {
+    const current = state.configs[0];
+    const tbody = document.querySelector('#cfgItemsTable tbody');
+    const weightMap = {};
+    const shareMap = {};
+    if (current) {
+      current.eligible_items.forEach(it => {
+        weightMap[it.item_id] = it.weight;
+        shareMap[it.item_id] = (it.relative_chance_within_rarity * 100).toFixed(1) + '%';
+      });
+    }
+
+    tbody.innerHTML = state.catalog.map(cat => {
+      const w = weightMap[cat.id] || 50;
+      const checked = weightMap[cat.id] !== undefined ? 'checked' : '';
+      return `
+        <tr>
+          <td><input type="checkbox" class="cfg-item-check" data-id="${cat.id}" ${checked} /></td>
+          <td>${cat.name} (<code>${cat.id}</code>)</td>
+          <td><span class="badge ${cat.rarity}">${cat.rarity}</span></td>
+          <td><input type="number" class="cfg-item-weight" data-id="${cat.id}" value="${w}" style="width:70px;" /></td>
+          <td>${shareMap[cat.id] || '-'}</td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+  async function saveLootConfig() {
+    try {
+      const eligibleItems = [];
+      document.querySelectorAll('.cfg-item-check').forEach(chk => {
+        if (chk.checked) {
+          const id = chk.dataset.id;
+          const wInput = document.querySelector(`.cfg-item-weight[data-id="${id}"]`);
+          eligibleItems.push({ item_id: id, weight: parseInt(wInput.value, 10) || 0 });
+        }
+      });
+
+      const payload = {
+        dungeon_id: document.getElementById('cfgDungeonId').value.trim(),
+        difficulty: parseInt(document.getElementById('cfgDifficulty').value, 10),
+        allocation_mode: document.getElementById('cfgAllocMode').value,
+        contribution_mode: document.getElementById('cfgContribMode').value,
+        party_pool_drop_count: parseInt(document.getElementById('cfgDropCount').value, 10),
+        rarity_chances: {
+          COMMON: parseFloat(document.getElementById('probCommon').value) || 0,
+          RARE: parseFloat(document.getElementById('probRare').value) || 0,
+          EPIC: parseFloat(document.getElementById('probEpic').value) || 0,
+          LEGENDARY: parseFloat(document.getElementById('probLegendary').value) || 0
+        },
+        eligible_items: eligibleItems
+      };
+
+      const saved = await api('/api/loot-configs', {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      });
+      showToast(`Saved new immutable LootConfig v${saved.version} for ${saved.dungeon_id} (Lv.${saved.difficulty})!`);
+      await refreshAll();
+    } catch (err) {
+      showToast(err.message, true);
+    }
+  }
+
+  window.addEventListener('DOMContentLoaded', refreshAll);
+</script>
+</body>
+</html>
