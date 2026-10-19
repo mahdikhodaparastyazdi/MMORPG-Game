@@ -11,7 +11,7 @@ A production-oriented Go + PostgreSQL Modular Monolith implementing the **Dungeo
 
 ## Quick Start (Clean Checkout to Running System)
 
-### Option A: Docker Compose (Recommended)
+### Docker Compose
 Run the entire stack (PostgreSQL 16 + automated schema migrations & seed data + Go Backend + Web UI) with a single command:
 
 ```bash
